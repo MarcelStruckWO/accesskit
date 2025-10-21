@@ -1,0 +1,26 @@
+[package]
+name = "accesskit_ios"
+version = "0.1.0"
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[package.metadata.docs.rs]
+default-target = "aarch64-apple-ios"
+
+[dependencies]
+accesskit = { version = "0.21.0", path = "../../common" }
+accesskit_consumer = { version = "0.30.0", path = "../../consumer" }
+hashbrown = { version = "0.15", default-features = false, features = ["default-hasher"] }
+objc2 = {version="0.6", all-features=true}
+objc2-foundation = { version = "0.3", all-features=true, features = [
+    # "NSArray",
+    # "NSDictionary",
+    # "NSValue",
+    # "NSThread",
+] }
+objc2-ui-kit = { version="0.3", all-features = true }
+objc2-core-foundation = { version="0.3", all-features = true }
