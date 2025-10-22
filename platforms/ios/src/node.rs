@@ -2,10 +2,10 @@
 
 use accesskit::{Role, TextSelection, Toggled};
 use accesskit_consumer::Node;
-use objc2::rc::Allocated;
+use objc2::rc::Id;
+use objc2::rc::Retained;
 use objc2::MainThreadOnly;
-use objc2::{msg_send_id, rc::Id, runtime::AnyObject, sel};
-use objc2_foundation::{ns_string, NSArray, NSString};
+use objc2_foundation::{NSArray, NSString};
 use objc2_ui_kit::{NSObjectUIAccessibilityContainer, UIAccessibilityElement, UIView};
 use std::rc::Rc;
 
@@ -123,60 +123,33 @@ pub(crate) fn build_element_for_node(
     container_view: &UIView,
     node: &Node,
 ) -> Option<ElementRef> {
-    println!(
-        "building element for accesskit node {:?}, {:?}",
-        node.id(),
-        is_accessibility_element(node)
-    );
     if !is_accessibility_element(node) {
         return None;
     }
 
-    println!(
-        "element {:?} child count in accesskit: {:?}",
-        node.id(),
-        node.child_ids().collect::<Vec<_>>()
-    );
-
-    // Create and initialize the element with the container.
-    let element: Id<UIAccessibilityElement> = unsafe {
-        let el: Allocated<UIAccessibilityElement> =
-            UIAccessibilityElement::alloc(context.mtm.clone());
-        let el = UIAccessibilityElement::initWithAccessibilityContainer(el, container_view);
-        el
-        // msg_send_id![&*el, initWithAccessibilityContainer: container_view]
+    let element: Retained<UIAccessibilityElement> = unsafe {
+        let el = UIAccessibilityElement::alloc(context.mtm.clone());
+        UIAccessibilityElement::initWithAccessibilityContainer(el, container_view)
     };
 
-    // Set label
-    if let Some(label) = label_for(node) {
-        let s = NSString::from_str(&label);
-        unsafe {
-            element.setAccessibilityLabel(Some(&s));
-        }
-        // unsafe { let _: () = msg_send_id![&*element, setAccessibilityLabel: &*s] };
-    }
-
-    // Set hint/description as accessibilityHint
-    if let Some(hint) = hint_for(node) {
-        let s = NSString::from_str(&hint);
-        unsafe { element.setAccessibilityHint(Some(&s)) };
-    }
-
-    // Set value, if present
-    if let Some(value_str) = string_value_for(node) {
-        let s = NSString::from_str(&value_str);
-        unsafe { element.setAccessibilityValue(Some(&s)) };
-    }
-
-    // Frame in container space; use iOS 11+ API if available.
-    // We call setAccessibilityFrameInContainerSpace:, which is broadly available.
     let Some(frame) = element_frame_in_container(container_view, node) else {
-        println!("no frame set for element, skipping");
         return None;
     };
-    println!("got cg rect frame for element by accesskit {:?}", frame);
-    unsafe {
-        element.setAccessibilityFrameInContainerSpace(frame);
+    element.setAccessibilityFrameInContainerSpace(frame);
+
+    if let Some(label) = label_for(node) {
+        let s = NSString::from_str(&label);
+        element.setAccessibilityLabel(Some(&s));
+    }
+
+    if let Some(hint) = hint_for(node) {
+        let s = NSString::from_str(&hint);
+        element.setAccessibilityHint(Some(&s));
+    }
+
+    if let Some(value_str) = string_value_for(node) {
+        let s = NSString::from_str(&value_str);
+        element.setAccessibilityValue(Some(&s));
     }
 
     // Traits mapping can be added later; by default, omitted traits behave as static text.
@@ -187,22 +160,17 @@ pub(crate) fn build_element_for_node(
 
     let children = elements_for_children(context, container_view, node.filtered_children(filter));
     let accessibility_elements = children.downcast().unwrap();
-    // for child in &children {
-    //     println!("child element: {:?}", child);
-    //     // element.childn
-    // }
     unsafe { element.setAccessibilityElements(Some(&accessibility_elements), context.mtm) };
 
     Some(ElementRef { element })
 }
 
-/// Convert a slice of Node -> NSArray<UIAccessibilityElement>.
 pub(crate) fn elements_for_children<'a>(
     context: &Rc<Context>,
     container_view: &UIView,
     children: impl Iterator<Item = Node<'a>>,
-) -> Id<NSArray<UIAccessibilityElement>> {
-    let mut out: Vec<Id<UIAccessibilityElement>> = Vec::new();
+) -> Retained<NSArray<UIAccessibilityElement>> {
+    let mut out: Vec<Retained<UIAccessibilityElement>> = Vec::new();
     for child in children {
         if let Some(el) = build_element_for_node(context, container_view, &child) {
             out.push(el.element);
@@ -219,7 +187,6 @@ pub(crate) fn elements_for_root(
     container_view: &UIView,
     root: Node<'_>,
 ) -> Id<NSArray<UIAccessibilityElement>> {
-    println!("filter for accessit root: {:?}", filter(&root));
     let top_level_elements = if filter(&root).is_include() && root.role() != Role::Window {
         let mut v = Vec::new();
         if let Some(el) = build_element_for_node(context, container_view, &root) {
@@ -233,11 +200,9 @@ pub(crate) fn elements_for_root(
             })
             .collect::<Vec<_>>()
     };
-    println!("accesskit elements: {top_level_elements:?}");
     NSArray::from_retained_slice(&top_level_elements)
 }
 
-// Simple helpers to make the filter intent explicit.
 trait FilterFlag {
     fn is_include(&self) -> bool;
 }

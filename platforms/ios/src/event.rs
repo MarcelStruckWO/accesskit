@@ -2,12 +2,9 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 
 use accesskit::{NodeId, Role};
-use accesskit_consumer::{common_filter, FilterResult, Node, TreeChangeHandler};
+use accesskit_consumer::{FilterResult, Node, TreeChangeHandler};
 use hashbrown::HashSet;
-use objc2_ui_kit::{
-    UIAccessibilityElementFocusedNotification, UIAccessibilityLayoutChangedNotification,
-    UIAccessibilityNotifications, UIAccessibilityPostNotification,
-};
+use objc2_ui_kit::{UIAccessibilityLayoutChangedNotification, UIAccessibilityNotifications};
 
 use crate::context::Context;
 use crate::filters::filter;
@@ -203,7 +200,7 @@ pub(crate) enum QueuedEvent {
 
 impl QueuedEvent {
     fn raise(self, context: &Rc<Context>) {
-        println!("got event for accesskit: {self:?}");
+        // println!("got event for accesskit: {self:?}");
         // match self {
         //     QueuedEvent::Generic {
         //         node_id,

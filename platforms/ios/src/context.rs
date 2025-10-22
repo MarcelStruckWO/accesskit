@@ -3,7 +3,7 @@
 use accesskit::{ActionHandler, ActionRequest, NodeId};
 use accesskit_consumer::Tree;
 use hashbrown::HashMap;
-use objc2::rc::{Id, WeakId};
+use objc2::rc::WeakId;
 use objc2_foundation::MainThreadMarker;
 use objc2_ui_kit::UIView;
 use std::cell::RefCell;

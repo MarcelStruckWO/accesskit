@@ -2,27 +2,25 @@
 
 use crate::{
     context::{ActionHandlerNoMut, ActionHandlerWrapper, Context},
-    event::{EventGenerator, QueuedEvents},
-    filters::filter,
+    event::EventGenerator,
     node::elements_for_root,
 };
 use accesskit::{
     ActionHandler, ActivationHandler, Node as NodeProvider, NodeId, Role, Tree as TreeData,
     TreeUpdate,
 };
-use accesskit_consumer::{Node, Tree};
+use accesskit_consumer::Tree;
 use objc2::{
-    rc::{Id, Retained, Weak, WeakId},
+    rc::{Retained, Weak},
     runtime::AnyObject,
-    ClassType,
 };
-use objc2_foundation::{MainThreadMarker, NSArray, NSObject};
+use objc2_foundation::{MainThreadMarker, NSArray};
 use objc2_ui_kit::{
-    NSObjectUIAccessibilityContainer, UIAccessibilityContainerType, UIAccessibilityElement,
-    UIAccessibilityLayoutChangedNotification, UIAccessibilityPostNotification, UIView,
+    NSObjectUIAccessibilityContainer, UIAccessibilityLayoutChangedNotification,
+    UIAccessibilityPostNotification, UIView,
 };
 use std::fmt::{Debug, Formatter};
-use std::{ffi::c_void, rc::Rc};
+use std::rc::Rc;
 
 const PLACEHOLDER_ROOT_ID: NodeId = NodeId(0);
 
@@ -102,7 +100,6 @@ impl Adapter {
     }
 
     fn set_accessibility_elements_on_view(context: &Rc<Context>) {
-        println!("set accesskit elements");
         let view = match context.view.load() {
             Some(v) => v,
             None => return,
@@ -111,53 +108,40 @@ impl Adapter {
         let state = tree.state();
         let root = state.root();
 
-        // pretty print debug info for tree
-        println!("accesskit tree state:");
-        fn print_node(context: &Rc<Context>, node: &Node<'_>, indent: usize) {
-            print!("[accesskit tree] ");
-            for _ in 0..indent {
-                print!("  ");
-            }
-            println!(
-                "- id: {:?}, role: {:?}, name: {:?}, value: {:?}, bounds: {:?}",
-                node.id(),
-                node.role(),
-                node.label().map(|n| n.to_string()),
-                node.value(),
-                node.bounding_box(),
-            );
-            for child in node.children() {
-                print_node(context, &child, indent + 1);
-            }
-        }
-        print_node(context, &root, 0);
+        // // pretty print debug info for tree
+        // println!("accesskit tree state:");
+        // fn print_node(context: &Rc<Context>, node: &Node<'_>, indent: usize) {
+        //     print!("[accesskit tree] ");
+        //     for _ in 0..indent {
+        //         print!("  ");
+        //     }
+        //     println!(
+        //         "- id: {:?}, role: {:?}, name: {:?}, value: {:?}, bounds: {:?}",
+        //         node.id(),
+        //         node.role(),
+        //         node.label().map(|n| n.to_string()),
+        //         node.value(),
+        //         node.bounding_box(),
+        //     );
+        //     for child in node.children() {
+        //         print_node(context, &child, indent + 1);
+        //     }
+        // }
+        // print_node(context, &root, 0);
 
-        // let elements: Retained<NSArray<NSObject>> = {
         let elements: Retained<NSArray<AnyObject>> = {
-            // Build top-level elements from the root (or its children).
             let arr = elements_for_root(&context, &view, root);
-            // unsafe { arr.cast_unchecked::<NSObject>() }
 
-            // // Upcast NSArray<UIAccessibilityElement> -> NSArray<NSObject>.
             let mut v: Vec<Retained<AnyObject>> = Vec::new();
             for i in 0..arr.len() {
-                // SAFETY: NSArray contains only UIAccessibilityElement subclass of NSObject.
-                // let obj: Retained<NSObject> = Retained(arr.get(i).unwrap());
                 let obj = arr.objectAtIndex(i).into();
                 v.push(obj);
             }
-            println!("set accesskit elements with {} - {:?}", v.len(), v);
             NSArray::from_retained_slice(&v)
         };
 
-        // Set view.accessibilityElements = elements
         unsafe {
             view.setAccessibilityElements(Some(&*elements), context.mtm);
-
-            //     let _: () = objc2::msg_send![
-            //         &*view,
-            //         setAccessibilityElements: &*elements
-            //     ];
         }
 
         unsafe {
@@ -240,7 +224,6 @@ impl Adapter {
                 mtm,
             } => match activation_handler.request_initial_tree() {
                 Some(initial_state) => {
-                    println!("received initial tree accesskit");
                     let tree = Tree::new(initial_state, true);
                     let context = Context::new(view.clone(), tree, Rc::clone(action_handler), *mtm);
                     Self::set_accessibility_elements_on_view(&context);
@@ -249,7 +232,6 @@ impl Adapter {
                     result
                 }
                 None => {
-                    println!("did not receive initial accesskit tree");
                     let placeholder_update = TreeUpdate {
                         nodes: vec![(PLACEHOLDER_ROOT_ID, NodeProvider::new(Role::Window))],
                         tree: Some(TreeData::new(PLACEHOLDER_ROOT_ID)),
