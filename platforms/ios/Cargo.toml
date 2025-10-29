@@ -12,8 +12,8 @@ rust-version.workspace = true
 default-target = "aarch64-apple-ios"
 
 [dependencies]
-accesskit = { version = "0.21.0", path = "../../common" }
-accesskit_consumer = { version = "0.30.0", path = "../../consumer" }
+accesskit = { version = "0.21.1", path = "../../common" }
+accesskit_consumer = { version = "0.31.0", path = "../../consumer" }
 hashbrown = { version = "0.15", default-features = false, features = ["default-hasher"] }
 objc2 = {version="0.6", all-features=true}
 objc2-foundation = { version = "0.3", all-features=true, features = [
